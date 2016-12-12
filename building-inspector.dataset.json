@@ -1,0 +1,11 @@
+{
+  "id": "building-inspector",
+  "title": "Building Inspector",
+  "license": "CC BY 3.0",
+  "description": "",
+  "author": "NYPL",
+  "website": "http://buildinginspector.nypl.org/",
+  "@context": {
+    "xsd": "http://www.w3.org/2001/XMLSchema#"
+  }
+}
