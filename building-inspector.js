@@ -126,6 +126,7 @@ function convertConsolidated (sheetsById, feature) {
             validUntil: year,
             name: address.flag_value,
             data: {
+              number: address.flag_value,
               sheetId: feature.properties.sheet_id,
               layerId: sheet.properties.layer_id,
               mapId: parseInt(feature.properties.map_id)
