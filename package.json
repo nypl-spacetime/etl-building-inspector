@@ -4,6 +4,7 @@
   "description": "Download and convert Building Inspector data to Space/Time NDJSON",
   "main": "building-inspector.js",
   "devDependencies": {
+    "spacetime-generate-etl-readme": "^0.0.6",
     "standard": "^6.0.8"
   },
   "repository": {
@@ -11,7 +12,8 @@
     "url": "http://github.com/nypl-spacetime/etl-building-inspector.git"
   },
   "scripts": {
-    "test": "standard"
+    "test": "standard",
+    "readme": "spacetime-generate-etl-readme ./ -o README.md"
   },
   "author": "Bert Spaan",
   "license": "MIT",

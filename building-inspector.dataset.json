@@ -1,8 +1,8 @@
 {
   "id": "building-inspector",
   "title": "Building Inspector",
-  "license": "CC BY 3.0",
-  "description": "",
+  "license": "CC0",
+  "description": "Data from the Building Inspector API; contains placenames, address numbers and building footprints obtained from 19th century fire insurance atlases included in the Atlases of New York City Collection at The New York Public Library.",
   "author": "NYPL",
   "website": "http://buildinginspector.nypl.org/",
   "@context": {
