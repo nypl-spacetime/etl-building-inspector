@@ -5,7 +5,7 @@
   "description": "Data from the Building Inspector API; contains placenames, address numbers and building footprints obtained from 19th century fire insurance atlases included in the Atlases of New York City Collection at The New York Public Library.",
   "author": "NYPL",
   "website": "http://buildinginspector.nypl.org/",
-  "@context": {
+  "jsonldContext": {
     "xsd": "http://www.w3.org/2001/XMLSchema#"
   }
 }
