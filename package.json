@@ -1,6 +1,6 @@
 {
   "name": "spacetime-etl-building-inspector",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Download and convert Building Inspector data to Space/Time NDJSON",
   "main": "building-inspector.js",
   "devDependencies": {
@@ -20,6 +20,7 @@
   "dependencies": {
     "JSONStream": "^1.0.7",
     "async": "^1.5.2",
+    "got": "^6.7.1",
     "highland": "^2.6.0",
     "request": "^2.69.0"
   }

@@ -1,14 +1,18 @@
-'use strict'
-
 const fs = require('fs')
 const crypto = require('crypto')
 const path = require('path')
-const request = require('request')
+const got = require('got')
 const async = require('async')
 const H = require('highland')
 const JSONStream = require('JSONStream')
 
 const baseUrl = 'http://buildinginspector.nypl.org/api/'
+
+const GOT_OPTIONS = {
+  timeout: 25 * 1000,
+  retries: 5,
+  json: true
+}
 
 const createPromise = (fun, ...args) => {
   return new Promise((resolve, reject) => {
@@ -24,36 +28,34 @@ const createPromise = (fun, ...args) => {
   })
 }
 
-var requestCallback = function (sleep, url, callback) {
-  request(url, (err, response, body) => {
-    if (err) {
-      callback(err)
-    } else {
+function requestCallback (sleep, url, callback) {
+  got(url, GOT_OPTIONS)
+    .then((response) => {
       if (sleep) {
         setTimeout(() => {
-          callback(null, JSON.parse(body))
+          callback(null, response.body)
         }, sleep)
       } else {
-        callback(null, JSON.parse(body))
+        callback(null, response.body)
       }
-    }
-  })
+    })
+    .catch(callback)
 }
 
-var allPagesToFile = function (baseUrl, paginated, filename, onPage, callback) {
+function allPagesToFile (baseUrl, paginated, filename, onPage, callback) {
   if (paginated) {
-    var writeStream = H()
+    const writeStream = H()
 
     writeStream.flatten()
       .pipe(JSONStream.stringify('{\n"type":"FeatureCollection","features":[', '\n,\n', '\n]}\n'))
       .pipe(fs.createWriteStream(filename))
 
-    var page = 0
-    var nextPage
+    let page = 0
+    let nextPage
     async.doWhilst(
       function (callback) {
         page += 1
-        var url = baseUrl + '/page/' + page
+        const url = baseUrl + '/page/' + page
         requestCallback(1000, url, (err, json) => {
           if (onPage) {
             onPage(err, page, url, json)
@@ -77,19 +79,20 @@ var allPagesToFile = function (baseUrl, paginated, filename, onPage, callback) {
         callback(err)
       })
   } else {
-    request(baseUrl)
+    got.stream(baseUrl, Object.assign(GOT_OPTIONS, {json: false}))
       .pipe(fs.createWriteStream(filename))
       .on('finish', callback)
+      .on('error', callback)
   }
 }
 
 function convertConsolidated (sheetsById, feature) {
-  var buildingId = feature.properties.id
+  const buildingId = feature.properties.id
 
   const sheet = sheetsById[feature.properties.sheet_id]
   const year = parseInt(sheet.properties.layer.year)
 
-  var objects = [
+  let objects = [
     {
       type: 'object',
       obj: {
@@ -114,7 +117,7 @@ function convertConsolidated (sheetsById, feature) {
 
   if (feature.properties.consensus_address !== 'NONE') {
     feature.properties.consensus_address.forEach((address, i) => {
-      var addressId = `${buildingId}-${i + 1}`
+      const addressId = `${buildingId}-${i + 1}`
 
       objects.push(
         {
@@ -153,8 +156,7 @@ function convertConsolidated (sheetsById, feature) {
 }
 
 function convertToponyms (sheetsById, feature) {
-  var hash = crypto.createHash('md5').update(feature.geometry.coordinates.join(',')).digest('hex')
-
+  const hash = crypto.createHash('md5').update(feature.geometry.coordinates.join(',')).digest('hex')
   const sheetId = feature.properties.sheet_id
   const sheet = sheetsById[sheetId]
   const year = parseInt(sheet.properties.layer.year)
@@ -178,7 +180,7 @@ function convertToponyms (sheetsById, feature) {
 }
 
 function convertGeoJSON (sheetsById, dir, writer, file, callback) {
-  var stream = fs.createReadStream(path.join(dir, file.filename))
+  const stream = fs.createReadStream(path.join(dir, file.filename))
     .pipe(JSONStream.parse('features.*'))
 
   H(stream)
@@ -228,8 +230,8 @@ function download (config, dirs, tools, callback) {
 
 function transform (config, dirs, tools, callback) {
   // First, load all sheets, needed for linking objects to layers
-  var sheets
-  var sheetsById = {}
+  let sheets
+  let sheetsById = {}
 
   try {
     sheets = JSON.parse(fs.readFileSync(path.join(dirs.download, 'sheets.geojson')))
@@ -243,7 +245,7 @@ function transform (config, dirs, tools, callback) {
     sheetsById[sheet.properties.id] = sheet
   })
 
-  var files = [
+  const files = [
     {
       filename: 'consolidated.geojson',
       convert: convertConsolidated
