@@ -21,7 +21,6 @@
     "JSONStream": "^1.0.7",
     "async": "^1.5.2",
     "got": "^6.7.1",
-    "highland": "^2.6.0",
-    "request": "^2.69.0"
+    "highland": "^2.6.0"
   }
 }
