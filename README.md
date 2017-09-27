@@ -51,7 +51,7 @@ git clone https://github.com/nypl-spacetime/etl-building-inspector.git /path/to/
 cd /path/to/etl-modules/etl-building-inspector
 npm install
 
-spacetime-etl building-inspector [<step>]
+spacetime-etl building-inspector[.<step>]
 ```
 
 See http://github.com/nypl-spacetime/spacetime-etl for information about Space/Time's ETL tool. More Space/Time ETL modules [can be found on GitHub](https://github.com/search?utf8=%E2%9C%93&q=org%3Anypl-spacetime+etl-&type=Repositories&ref=advsearch&l=&l=).
