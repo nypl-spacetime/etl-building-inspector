@@ -5,6 +5,7 @@ const got = require('got')
 const async = require('async')
 const H = require('highland')
 const JSONStream = require('JSONStream')
+const base62 = require('base-62.js')
 
 const baseUrl = 'http://buildinginspector.nypl.org/api/'
 
@@ -13,6 +14,8 @@ const GOT_OPTIONS = {
   retries: 5,
   json: true
 }
+
+const MAPWARPER_DATASET = 'mapwarper'
 
 const createPromise = (fun, ...args) => {
   return new Promise((resolve, reject) => {
@@ -71,9 +74,7 @@ function allPagesToFile (baseUrl, paginated, filename, onPage, callback) {
           callback(err)
         })
       },
-      () => {
-        return nextPage // && page < 2
-      },
+      () => nextPage, // && page < 2
       (err) => {
         writeStream.end()
         callback(err)
@@ -88,8 +89,9 @@ function allPagesToFile (baseUrl, paginated, filename, onPage, callback) {
 
 function convertConsolidated (sheetsById, feature) {
   const buildingId = feature.properties.id
-
+  const mapId = parseInt(feature.properties.map_id)
   const sheet = sheetsById[feature.properties.sheet_id]
+  const layerId = sheet.properties.layer_id
   const year = parseInt(sheet.properties.layer.year)
 
   let objects = [
@@ -102,13 +104,14 @@ function convertConsolidated (sheetsById, feature) {
         validUntil: year,
         data: {
           sheetId: feature.properties.sheet_id,
-          layerId: sheet.properties.layer_id,
-          mapId: parseInt(feature.properties.map_id),
+          layerId,
+          mapId,
           color: feature.properties.consensus_color
         },
         geometry: feature.geometry.geometries[0]
       }
-    }
+    },
+    ...mapwarperRelations(buildingId, mapId, layerId)
   ]
 
   if (feature.geometry.geometries[0].coordinates[0].length < 4) {
@@ -155,28 +158,55 @@ function convertConsolidated (sheetsById, feature) {
   return objects
 }
 
+function mapwarperRelations (id, mapId, layerId) {
+  return [
+    {
+      type: 'relation',
+      obj: {
+        type: 'st:in',
+        from: id,
+        to: `${MAPWARPER_DATASET}/${mapId}`
+      }
+    },
+    {
+      type: 'relation',
+      obj: {
+        type: 'st:in',
+        from: id,
+        to: `${MAPWARPER_DATASET}/layer-${layerId}`
+      }
+    }
+  ]
+}
+
 function convertToponyms (sheetsById, feature) {
   const hash = crypto.createHash('md5').update(feature.geometry.coordinates.join(',')).digest('hex')
   const sheetId = feature.properties.sheet_id
+  const toponymId = `toponym-${sheetId}-${base62.encodeHex(hash)}`
   const sheet = sheetsById[sheetId]
+  const layerId = sheet.properties.layer_id
+  const mapId = parseInt(sheet.properties.map_id)
   const year = parseInt(sheet.properties.layer.year)
 
-  return [{
-    type: 'object',
-    obj: {
-      id: `toponym-${sheetId}-${hash}`,
-      type: 'st:Building',
-      validSince: year,
-      validUntil: year,
-      name: feature.properties.consensus,
-      data: {
-        sheetId,
-        layerId: sheet.properties.layer_id,
-        mapId: parseInt(sheet.properties.map_id)
-      },
-      geometry: feature.geometry
-    }
-  }]
+  return [
+    {
+      type: 'object',
+      obj: {
+        id: toponymId,
+        type: 'st:Building',
+        validSince: year,
+        validUntil: year,
+        name: feature.properties.consensus,
+        data: {
+          sheetId,
+          layerId,
+          mapId
+        },
+        geometry: feature.geometry
+      }
+    },
+    ...mapwarperRelations(toponymId, mapId, layerId)
+  ]
 }
 
 function convertGeoJSON (sheetsById, dir, writer, file, callback) {
