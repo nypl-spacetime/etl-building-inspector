@@ -3,9 +3,103 @@
   "title": "Building Inspector",
   "license": "CC0",
   "description": "Data from the Building Inspector API; contains placenames, address numbers and building footprints obtained from 19th century fire insurance atlases included in the Atlases of New York City Collection at The New York Public Library.",
-  "author": "NYPL",
-  "website": "http://buildinginspector.nypl.org/",
-  "jsonldContext": {
-    "xsd": "http://www.w3.org/2001/XMLSchema#"
+  "sources": [
+    {
+      "title": "Building footprints and house numbers, after consensus was determined by Building Inspector's algorithms",
+      "path": "http://buildinginspector.nypl.org/api/consolidated/"
+    },
+    {
+      "title": "Building names and toponyms transcribed from maps",
+      "path": "http://buildinginspector.nypl.org/api/toponyms"
+    },
+    {
+      "title": "Map sheets from Map Warper",
+      "path": "http://buildinginspector.nypl.org/api/sheets/"
+    }
+  ],
+  "contributors": [
+    {
+      "title": "Bert Spaan",
+      "role": "editor"
+    },
+    {
+      "title": "Mauricio Giraldo",
+      "role": "author"
+    }
+  ],
+  "homepage": "http://buildinginspector.nypl.org/",
+  "fields": {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "oneOf": [
+      {
+        "type": "object",
+        "description": "Building",
+        "additionalProperties": false,
+        "required": [
+          "sheetId",
+          "layerId",
+          "mapId"
+        ],
+        "properties": {
+          "sheetId": {
+            "type": "integer",
+            "description": ""
+          },
+          "layerId": {
+            "type": "integer",
+            "description": ""
+          },
+          "mapId": {
+            "type": "integer",
+            "description": ""
+          },
+          "colors": {
+            "type": "array",
+            "description": "",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "borough": {
+            "type": "string",
+            "description": ""
+          }
+        }
+      },
+      {
+        "type": "object",
+        "description": "Address",
+        "additionalProperties": false,
+        "required": [
+          "number",
+          "sheetId",
+          "layerId",
+          "mapId"
+        ],
+        "properties": {
+          "number": {
+            "type": "string",
+            "description": "House number of address, transcribed from map"
+          },
+          "sheetId": {
+            "type": "integer",
+            "description": "Building Inspector sheet ID"
+          },
+          "layerId": {
+            "type": "integer",
+            "description": "Map Warper layer ID"
+          },
+          "mapId": {
+            "type": "integer",
+            "description": "Map Warper map ID"
+          },
+          "borough": {
+            "type": "string",
+            "description": "NYC borough of map layer"
+          }
+        }
+      }
+    ]
   }
 }

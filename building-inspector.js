@@ -7,6 +7,8 @@ const H = require('highland')
 const JSONStream = require('JSONStream')
 const base62 = require('base-62.js')
 
+const GeoIndices = require('./geo-indices')
+
 const baseUrl = 'http://buildinginspector.nypl.org/api/'
 
 const GOT_OPTIONS = {
@@ -87,12 +89,21 @@ function allPagesToFile (baseUrl, paginated, filename, onPage, callback) {
   }
 }
 
-function convertConsolidated (sheetsById, feature) {
+const consolidatedCache = {}
+
+function convertConsolidated (sheetsById, layersById, feature) {
   const buildingId = feature.properties.id
+
+  if (consolidatedCache[buildingId]) {
+    return
+  }
+  consolidatedCache[buildingId] = true
+
   const mapId = parseInt(feature.properties.map_id)
   const sheet = sheetsById[feature.properties.sheet_id]
-  const layerId = sheet.properties.layer_id
+  const layerId = sheet.properties.layer.external_id
   const year = parseInt(sheet.properties.layer.year)
+  const borough = layersById[layerId] && layersById[layerId].borough
 
   let objects = [
     {
@@ -106,13 +117,23 @@ function convertConsolidated (sheetsById, feature) {
           sheetId: feature.properties.sheet_id,
           layerId,
           mapId,
-          color: feature.properties.consensus_color
+          colors: feature.properties.consensus_color ? feature.properties.consensus_color.split(',') : undefined,
+          borough
         },
         geometry: feature.geometry.geometries[0]
       }
     },
     ...mapwarperRelations(buildingId, mapId, layerId)
   ]
+
+  if (!borough) {
+    objects.push({
+      type: 'log',
+      obj: {
+        error: `Can\'t find borough for layer ${layerId}`
+      }
+    })
+  }
 
   if (feature.geometry.geometries[0].coordinates[0].length < 4) {
     return []
@@ -134,8 +155,9 @@ function convertConsolidated (sheetsById, feature) {
             data: {
               number: address.flag_value,
               sheetId: feature.properties.sheet_id,
-              layerId: sheet.properties.layer_id,
-              mapId: parseInt(feature.properties.map_id)
+              layerId: layerId,
+              mapId: mapId,
+              borough
             },
             geometry: feature.geometry.geometries[i + 1]
           }
@@ -179,14 +201,33 @@ function mapwarperRelations (id, mapId, layerId) {
   ]
 }
 
-function convertToponyms (sheetsById, feature) {
+const toponymsCache = {}
+
+function convertToponyms (sheetsById, layersById, feature) {
   const hash = crypto.createHash('md5').update(feature.geometry.coordinates.join(',')).digest('hex')
   const sheetId = feature.properties.sheet_id
   const toponymId = `toponym-${sheetId}-${base62.encodeHex(hash)}`
+
+  if (toponymsCache[toponymId]) {
+    return
+  }
+  toponymsCache[toponymId] = true
+
   const sheet = sheetsById[sheetId]
-  const layerId = sheet.properties.layer_id
+  const layerId = sheet.properties.layer.external_id
   const mapId = parseInt(sheet.properties.map_id)
   const year = parseInt(sheet.properties.layer.year)
+  const borough = layersById[layerId] && layersById[layerId].borough
+
+  let logs = []
+  if (!borough) {
+    logs = [{
+      type: 'log',
+      obj: {
+        error: `Can\'t find borough for layer ${layerId}`
+      }
+    }]
+  }
 
   return [
     {
@@ -200,28 +241,97 @@ function convertToponyms (sheetsById, feature) {
         data: {
           sheetId,
           layerId,
-          mapId
+          mapId,
+          borough
         },
         geometry: feature.geometry
       }
     },
-    ...mapwarperRelations(toponymId, mapId, layerId)
+    ...mapwarperRelations(toponymId, mapId, layerId),
+    ...logs
   ]
 }
 
-function convertGeoJSON (sheetsById, dir, writer, file, callback) {
-  const stream = fs.createReadStream(path.join(dir, file.filename))
+function convertAndIndexBuildings (filename, convert, params) {
+  const geoIndices = GeoIndices()
+
+  return new Promise((resolve, reject) => {
+    convertGeoJSON(filename, convert, params)
+
+      .map((data) => {
+        geoIndices.index(data.obj)
+        return data
+      })
+      .map(H.curry(params.writer.writeObject))
+      .nfcall([])
+      .series()
+      .stopOnError(reject)
+      .done(() => {
+        resolve(geoIndices)
+      })
+  })
+}
+
+function convertAndIntersect (filename, convert, params) {
+  const geoIndices = params.geoIndices
+
+  return new Promise((resolve, reject) => {
+    convertGeoJSON(filename, convert, params)
+      .map((data) => {
+        let log
+        let relations = []
+
+        try {
+          const results = geoIndices.inside(data.obj)
+
+          if (results) {
+            if (results.length) {
+              relations = results.map((feature) => ({
+                type: 'relation',
+                obj: {
+                  from: data.obj.id,
+                  to: feature.properties.id,
+                  type: 'st:sameAs'
+                }
+              }))
+            } else {
+              log = {
+                type: 'log',
+                obj: {
+                  error: `Can\'t find building for toponym ${data.obj.id}`
+                }
+              }
+            }
+          }
+        } catch (err) {
+          log = {
+            type: 'log',
+            obj: {
+              error: `Error computing intersection for toponym ${data.obj.id}`
+            }
+          }
+        }
+
+        return [data, log, ...relations]
+      })
+      .flatten()
+      .compact()
+      .map(H.curry(params.writer.writeObject))
+      .nfcall([])
+      .series()
+      .stopOnError(reject)
+      .done(resolve)
+  })
+}
+
+function convertGeoJSON (filename, convert, params) {
+  const stream = fs.createReadStream(filename)
     .pipe(JSONStream.parse('features.*'))
 
-  H(stream)
-    .map(H.curry(file.convert, sheetsById))
+  return H(stream)
+    .map(H.curry(convert, params.sheets, params.layers))
     .compact()
     .flatten()
-    .map(H.curry(writer.writeObject))
-    .nfcall([])
-    .series()
-    .stopOnError(callback)
-    .done(callback)
 }
 
 function download (config, dirs, tools, callback) {
@@ -275,23 +385,30 @@ function transform (config, dirs, tools, callback) {
     sheetsById[sheet.properties.id] = sheet
   })
 
-  const files = [
-    {
-      filename: 'consolidated.geojson',
-      convert: convertConsolidated
-    },
-    {
-      filename: 'toponyms.geojson',
-      convert: convertToponyms
-    }
-  ]
+  let layers = require(path.join(__dirname, 'layer-boroughs.json'))
+  let layersById = {}
 
-  H(files)
-    .map(H.curry(convertGeoJSON, sheetsById, dirs.download, tools.writer))
-    .nfcall([])
-    .series()
-    .stopOnError(callback)
-    .done(callback)
+  layers.forEach((layer) => {
+    layersById[layer.id] = layer
+  })
+
+  const params = {
+    sheets: sheetsById,
+    layers: layersById,
+    writer: tools.writer
+  }
+
+  const filenameConsolidated = path.join(dirs.download, 'consolidated.geojson')
+  const filenameToponyms = path.join(dirs.download, 'toponyms.geojson')
+
+  convertAndIndexBuildings(filenameConsolidated, convertConsolidated, params)
+    .then((geoIndices) => {
+      return convertAndIntersect(filenameToponyms, convertToponyms, Object.assign(params, {
+        geoIndices
+      }))
+    })
+    .then(callback)
+    .catch(callback)
 }
 
 // ==================================== API ====================================

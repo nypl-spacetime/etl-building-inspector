@@ -1,6 +1,6 @@
 {
   "name": "spacetime-etl-building-inspector",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Download and convert Building Inspector data to Space/Time NDJSON",
   "main": "building-inspector.js",
   "devDependencies": {
@@ -18,10 +18,12 @@
   "author": "Bert Spaan",
   "license": "MIT",
   "dependencies": {
-    "JSONStream": "^1.0.7",
+    "JSONStream": "^1.3.1",
     "async": "^1.5.2",
     "base-62.js": "^0.9.9",
     "got": "^6.7.1",
-    "highland": "^2.6.0"
+    "highland": "^2.11.1",
+    "indexed-geo": "github:nypl-spacetime/indexed-geo",
+    "ramda": "^0.25.0"
   }
 }
