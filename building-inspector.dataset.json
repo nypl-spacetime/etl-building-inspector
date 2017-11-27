@@ -43,19 +43,19 @@
         "properties": {
           "sheetId": {
             "type": "integer",
-            "description": ""
+            "description": "Building Inspector map sheet ID"
           },
           "layerId": {
             "type": "integer",
-            "description": ""
+            "description": "Map Warper layer ID"
           },
           "mapId": {
             "type": "integer",
-            "description": ""
+            "description": "Map Warper map ID"
           },
           "colors": {
             "type": "array",
-            "description": "",
+            "description": "Crowdsourced color of building",
             "minItems": 1,
             "items": {
               "type": "string"
@@ -63,7 +63,7 @@
           },
           "borough": {
             "type": "string",
-            "description": ""
+            "description": "NYC borough of map layer"
           }
         }
       },
@@ -84,7 +84,7 @@
           },
           "sheetId": {
             "type": "integer",
-            "description": "Building Inspector sheet ID"
+            "description": "Building Inspector map sheet ID"
           },
           "layerId": {
             "type": "integer",
