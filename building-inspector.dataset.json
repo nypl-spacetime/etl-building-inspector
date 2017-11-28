@@ -20,15 +20,19 @@
   "contributors": [
     {
       "title": "Bert Spaan",
-      "role": "editor"
+      "role": "wrangler"
     },
     {
       "title": "Mauricio Giraldo",
       "role": "author"
+    },
+    {
+      "title": "Building Inspector contributors",
+      "role": "author"
     }
   ],
   "homepage": "http://buildinginspector.nypl.org/",
-  "fields": {
+  "schema": {
     "$schema": "http://json-schema.org/draft-04/schema#",
     "oneOf": [
       {
