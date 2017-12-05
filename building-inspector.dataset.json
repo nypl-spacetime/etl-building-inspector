@@ -3,6 +3,7 @@
   "title": "Building Inspector",
   "license": "CC0",
   "description": "Data from the Building Inspector API; contains placenames, address numbers and building footprints obtained from 19th century fire insurance atlases included in the Atlases of New York City Collection at The New York Public Library.",
+  "homepage": "http://buildinginspector.nypl.org/",
   "sources": [
     {
       "title": "Building footprints and house numbers, after consensus was determined by Building Inspector's algorithms",
@@ -31,7 +32,17 @@
       "role": "author"
     }
   ],
-  "homepage": "http://buildinginspector.nypl.org/",
+  "flattenPaths": [
+    "$.data.uuid",
+    "$.data.sheetId",
+    "$.data.layerId",
+    "$.data.mapId",
+    "$.data.colors[0]",
+    "$.data.colors[1]",
+    "$.data.colors",
+    "$.data.borough",
+    "$.data.number"
+  ],
   "schema": {
     "$schema": "http://json-schema.org/draft-04/schema#",
     "oneOf": [
